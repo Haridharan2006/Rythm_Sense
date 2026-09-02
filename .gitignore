@@ -26,3 +26,7 @@ dist-ssr
 handoff_data/*.npy
 windowed_data/
 __pycache__/
+
+handoff_data/*.npy
+windowed_data/
+__pycache__/
