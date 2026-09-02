@@ -48,7 +48,7 @@ export function playSyntheticMachineAudio(
     const t = i / sampleRate;
     let sample = 0;
 
-    if (machineId === 'fan_id00') {
+    if (machineId === 'fan_id00' || machineId === ('fan_00' as any)) {
       // Fan baseline motor hum
       sample += 0.3 * Math.sin(2 * Math.PI * 120 * t);
       sample += 0.15 * Math.sin(2 * Math.PI * 360 * t);
@@ -68,7 +68,7 @@ export function playSyntheticMachineAudio(
       sample += 0.14 * Math.sin(2 * Math.PI * 450 * t);
       sample += 0.07 * Math.sin(2 * Math.PI * 750 * t);
       sample += 0.03 * (Math.random() * 2 - 1);
-    } else if (machineId === 'valve_id00') {
+    } else if (machineId === 'valve_id00' || machineId === ('valve_00' as any)) {
       // Quiet background noise + actuations at t=2, 5, 8
       sample += 0.02 * (Math.random() * 2 - 1);
       [2.0, 5.0, 8.0].forEach(actTime => {

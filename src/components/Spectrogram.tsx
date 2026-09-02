@@ -1,17 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { SpectrogramData } from '../types';
-import { Sliders } from 'lucide-react';
+import type { SpectrogramData, AnomalyRegion, FrameErrorPoint } from '../types';
+import { Sliders, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 interface SpectrogramProps {
   spectrogram: SpectrogramData;
   currentTime?: number;
+  isAnomaly?: boolean;
+  anomalyRegions?: AnomalyRegion[];
+  frameErrors?: FrameErrorPoint[];
 }
 
 type Colormap = 'inferno' | 'viridis' | 'cividis' | 'thermal';
 
-export const Spectrogram: React.FC<SpectrogramProps> = ({ spectrogram, currentTime }) => {
+export const Spectrogram: React.FC<SpectrogramProps> = ({
+  spectrogram,
+  currentTime,
+  isAnomaly = false,
+  anomalyRegions = [],
+  frameErrors = [],
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [colormap, setColormap] = useState<Colormap>('inferno');
+  const [colormap, setColormap] = useState<Colormap>(isAnomaly ? 'thermal' : 'inferno');
 
   // Scientific Colormap color mappers (returns [r, g, b])
   const getColor = (v: number, cmap: Colormap): [number, number, number] => {
@@ -67,6 +76,29 @@ export const Spectrogram: React.FC<SpectrogramProps> = ({ spectrogram, currentTi
     const numFreq = spectrogram.freqBins;
     const numTime = spectrogram.timeBins;
 
+    // Compute min, max, and 68th percentile cutoff for color gating
+    let minDb = 0;
+    let maxDb = 1;
+    let cutoffDb = 0.5;
+
+    if (spectrogram.data && spectrogram.data.length > 0) {
+      const allVals: number[] = [];
+      for (let r = 0; r < spectrogram.data.length; r++) {
+        const row = spectrogram.data[r];
+        if (!row) continue;
+        for (let c = 0; c < row.length; c++) {
+          allVals.push(row[c]);
+        }
+      }
+      if (allVals.length > 0) {
+        allVals.sort((a, b) => a - b);
+        minDb = allVals[0];
+        maxDb = allVals[allVals.length - 1];
+        const cutoffIdx = Math.floor(allVals.length * 0.68);
+        cutoffDb = allVals[cutoffIdx];
+      }
+    }
+
     const imgData = ctx.createImageData(width, height);
 
     for (let py = 0; py < height; py++) {
@@ -75,37 +107,181 @@ export const Spectrogram: React.FC<SpectrogramProps> = ({ spectrogram, currentTi
 
       for (let px = 0; px < width; px++) {
         const timeIdx = Math.floor((px / width) * numTime);
-        const intensity = spectrogram.data[freqIdx]?.[timeIdx] || 0;
+        const rawIntensity = spectrogram.data[freqIdx]?.[timeIdx] ?? minDb;
 
-        const [r, g, b] = getColor(intensity, colormap);
+        // Gate low-energy background below cutoff to black (0)
+        let intensity = 0;
+        if (rawIntensity > cutoffDb && maxDb > cutoffDb) {
+          const rawNorm = (rawIntensity - cutoffDb) / (maxDb - cutoffDb);
+          intensity = Math.pow(Math.max(0, Math.min(1, rawNorm)), 1.15);
+        }
+
         const pixelIdx = (py * width + px) * 4;
 
-        imgData.data[pixelIdx] = r;
-        imgData.data[pixelIdx + 1] = g;
-        imgData.data[pixelIdx + 2] = b;
-        imgData.data[pixelIdx + 3] = 255;
+        if (intensity <= 0) {
+          imgData.data[pixelIdx] = 0;
+          imgData.data[pixelIdx + 1] = 0;
+          imgData.data[pixelIdx + 2] = 0;
+          imgData.data[pixelIdx + 3] = 255;
+        } else {
+          const [r, g, b] = getColor(intensity, colormap);
+          imgData.data[pixelIdx] = r;
+          imgData.data[pixelIdx + 1] = g;
+          imgData.data[pixelIdx + 2] = b;
+          imgData.data[pixelIdx + 3] = 255;
+        }
       }
     }
 
     ctx.putImageData(imgData, 0, 0);
 
+    // ============================================================
+    // PROMINENT ANOMALY REGION OVERLAYS
+    // ============================================================
+    const maxTime = spectrogram.timeAxis && spectrogram.timeAxis.length > 0
+      ? spectrogram.timeAxis[spectrogram.timeAxis.length - 1]
+      : 10.0;
+
+    // 1. Draw structured Anomaly Regions if available
+    if (anomalyRegions && anomalyRegions.length > 0) {
+      anomalyRegions.forEach((region) => {
+        const startX = Math.floor((region.startTime / maxTime) * width);
+        const endX = Math.floor((region.endTime / maxTime) * width);
+        const regWidth = Math.max(4, endX - startX);
+
+        // Highlight band
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+        ctx.fillRect(startX, 0, regWidth, height);
+
+        // Dashed border lines
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 3]);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, 0);
+        ctx.lineTo(startX, height);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(endX, 0);
+        ctx.lineTo(endX, height);
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+
+        // Label Tag on canvas
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(startX, 4, Math.min(120, regWidth), 18);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText('ANOMALY REGION', startX + 4, 17);
+      });
+    } else if (isAnomaly) {
+      // 2. If decision is ANOMALY but no explicit region object, highlight high-error frame clusters
+      let anomalyStart: number | null = null;
+      frameErrors.forEach((fe) => {
+        const isAnomFrame = fe.isAnomaly || fe.error > 0.05;
+        if (isAnomFrame && anomalyStart === null) {
+          anomalyStart = fe.time;
+        } else if (!isAnomFrame && anomalyStart !== null) {
+          const startX = Math.floor((anomalyStart / maxTime) * width);
+          const endX = Math.floor((fe.time / maxTime) * width);
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+          ctx.fillRect(startX, 0, Math.max(6, endX - startX), height);
+
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(startX, 0);
+          ctx.lineTo(startX, height);
+          ctx.stroke();
+
+          anomalyStart = null;
+        }
+      });
+      if (anomalyStart !== null) {
+        const startX = Math.floor((anomalyStart / maxTime) * width);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+        ctx.fillRect(startX, 0, width - startX, height);
+      }
+
+      // If whole clip is anomalous without frame breakdown, add top warning banner overlay
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+      ctx.fillRect(8, 8, 210, 22);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('⚠️ HIGH ANOMALY DEVIATION', 14, 23);
+    }
+
     // Draw active playback time line if present
     if (currentTime !== undefined && currentTime >= 0) {
-      const timePercent = currentTime / 10.0;
+      const timePercent = currentTime / (maxTime || 10.0);
       const cursorX = Math.floor(timePercent * width);
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
+      ctx.setLineDash([]);
       ctx.beginPath();
       ctx.moveTo(cursorX, 0);
       ctx.lineTo(cursorX, height);
       ctx.stroke();
     }
-  }, [spectrogram, colormap, currentTime]);
+  }, [spectrogram, colormap, currentTime, isAnomaly, anomalyRegions, frameErrors]);
 
   return (
-    <div className="panel" style={{ padding: '16px' }}>
+    <div
+      className="panel"
+      style={{
+        padding: '16px',
+        border: isAnomaly ? '2px solid var(--status-anomaly)' : '1px solid var(--border-color)',
+        boxShadow: isAnomaly ? '0 0 16px rgba(239, 68, 68, 0.25)' : 'none',
+        transition: 'all 0.3s ease',
+      }}
+    >
       <div className="panel-header">
-        <div className="panel-title">LOG-MEL SPECTROGRAM</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="panel-title">LOG-MEL SPECTROGRAM</div>
+          {isAnomaly ? (
+            <span
+              style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                color: '#ffffff',
+                backgroundColor: 'var(--status-anomaly)',
+                padding: '2px 8px',
+                borderRadius: '3px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <AlertTriangle size={12} />
+              ANOMALOUS ACOUSTIC PATTERN
+            </span>
+          ) : (
+            <span
+              style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--status-normal)',
+                backgroundColor: 'var(--bg-panel-subtle)',
+                border: '1px solid var(--border-color)',
+                padding: '2px 8px',
+                borderRadius: '3px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <ShieldCheck size={12} />
+              NORMAL ACOUSTIC PATTERN
+            </span>
+          )}
+        </div>
 
         {/* Colormap Switcher */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -166,9 +342,10 @@ export const Spectrogram: React.FC<SpectrogramProps> = ({ spectrogram, currentTi
               position: 'relative',
               width: '100%',
               height: '240px',
-              border: '1px solid var(--border-dark)',
+              border: `2px solid ${isAnomaly ? 'var(--status-anomaly)' : 'var(--border-dark)'}`,
               backgroundColor: '#000000',
               overflow: 'hidden',
+              borderRadius: 'var(--radius-sm)',
             }}
           >
             <canvas
@@ -206,11 +383,19 @@ export const Spectrogram: React.FC<SpectrogramProps> = ({ spectrogram, currentTi
         style={{
           marginTop: '10px',
           fontSize: '11.5px',
-          color: 'var(--text-muted)',
-          fontStyle: 'italic',
+          color: isAnomaly ? 'var(--status-anomaly)' : 'var(--text-muted)',
+          fontWeight: isAnomaly ? 600 : 400,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
         }}
       >
-        Time-frequency representation used by the predictive model.
+        <span>Time-frequency log-Mel spectrogram used by predictive model.</span>
+        {isAnomaly && (
+          <span style={{ color: 'var(--status-anomaly)', fontFamily: 'var(--font-mono)' }}>
+            [Red region highlights indicate anomalous temporal prediction error spikes]
+          </span>
+        )}
       </div>
     </div>
   );

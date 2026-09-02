@@ -403,6 +403,10 @@ export async function analyzeAudio(
         Number(
           data.inferenceTimeMs || 0
         ),
+
+      debugLog:
+        data.debugLog ||
+        data.debug_log,
     };
 
   } catch (
@@ -464,4 +468,27 @@ export async function predict(
     machineId,
     options
   );
+}
+
+
+export async function recalibrateMachine(machineId: string): Promise<{
+  status: string;
+  machineId: string;
+  threshold: number;
+  calibrationFileCount: number;
+  message: string;
+}> {
+  const formData = new FormData();
+  formData.append('machine_id', machineId);
+
+  const response = await fetch(`${API_BASE_URL}/recalibrate`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Recalibration failed for ${machineId}: ${response.statusText}`);
+  }
+
+  return response.json();
 }

@@ -34,6 +34,9 @@ from inference import (
     predict,
     SUPPORTED_MACHINES,
     normalize_machine_id,
+    THRESHOLD_CACHE,
+    get_threshold,
+    get_calibration_files,
 )
 
 
@@ -287,141 +290,54 @@ async def predict_audio(
         # REAL CONTRACT 4
         # ====================================================
 
-        score, threshold, decision, spectrogram = predict(
-
+        score, threshold, decision, spectrogram, debug_log = predict(
             filepath=temp_path,
-
             machine_id=machine_id,
         )
-
 
         elapsed_ms = (
             time.perf_counter()
             - start_time
         ) * 1000
 
-
-        # ====================================================
-        # SPECTROGRAM CONVERSION
-        # ====================================================
+        debug_log["inference_time_ms"] = round(elapsed_ms, 2)
 
         spectrogram = spectrogram.astype(
             float
         )
 
-
-        # ====================================================
-        # RESPONSE
-        # ====================================================
-
         response = {
-
-            "machineId":
-                machine_id,
-
-            "machineType":
-                SUPPORTED_MACHINES[
-                    machine_id
-                ],
-
-            "machineLabel":
-                (
-                    f"{SUPPORTED_MACHINES[machine_id]}"
-                    f" — {machine_id}"
-                ),
-
-            "acousticBehavior":
-                (
-                    "Periodic / continuous acoustic behavior"
-                    if machine_id.startswith("fan")
-                    else
-                    "Event-driven / burst-like acoustic behavior"
-                ),
-
-            "anomalyScore":
-                score,
-
-            "threshold":
-                threshold,
-
-            "decisionMargin":
-                score - threshold,
-
-            "decision":
-                decision,
-
-            # -----------------------------------------------
-            # Spectrogram
-            # -----------------------------------------------
-
+            "machineId": machine_id,
+            "machineType": SUPPORTED_MACHINES[machine_id],
+            "machineLabel": f"{SUPPORTED_MACHINES[machine_id]} — {machine_id}",
+            "acousticBehavior": (
+                "Periodic / continuous acoustic behavior"
+                if machine_id.startswith("fan")
+                else "Event-driven / burst-like acoustic behavior"
+            ),
+            "anomalyScore": score,
+            "threshold": threshold,
+            "decisionMargin": score - threshold,
+            "decision": decision,
+            "debugLog": debug_log,
+            "debug_log": debug_log,
             "spectrogram": {
-
-                "timeBins":
-                    int(
-                        spectrogram.shape[1]
-                    ),
-
-                "freqBins":
-                    int(
-                        spectrogram.shape[0]
-                    ),
-
-                "timeAxis":
-                    [
-                        round(
-                            i * 512 / 16000,
-                            4,
-                        )
-
-                        for i in range(
-                            spectrogram.shape[1]
-                        )
-                    ],
-
-                "freqAxis":
-                    [
-                        i
-
-                        for i in range(
-                            spectrogram.shape[0]
-                        )
-                    ],
-
-                "data":
-                    spectrogram.tolist(),
+                "timeBins": int(spectrogram.shape[1]),
+                "freqBins": int(spectrogram.shape[0]),
+                "timeAxis": [round(i * 512 / 16000, 4) for i in range(spectrogram.shape[1])],
+                "freqAxis": [i for i in range(spectrogram.shape[0])],
+                "data": spectrogram.tolist(),
             },
-
-            # -----------------------------------------------
-            # Metadata
-            # -----------------------------------------------
-
             "audioMetadata": {
-
-                "filename":
-                    file.filename,
-
-                "sampleRate":
-                    16000,
-
-                "channels":
-                    1,
-
-                "fileSize":
-                    (
-                        f"{len(file_bytes) / 1024:.1f} KB"
-                    ),
+                "filename": file.filename,
+                "sampleRate": 16000,
+                "channels": 1,
+                "fileSize": f"{len(file_bytes) / 1024:.1f} KB",
             },
-
-            "inferenceTimeMs":
-                round(
-                    elapsed_ms,
-                    2,
-                ),
+            "inferenceTimeMs": round(elapsed_ms, 2),
         }
 
-
         logger.info(
-
             (
                 "Inference complete | "
                 "machine=%s | "
@@ -430,61 +346,66 @@ async def predict_audio(
                 "decision=%s | "
                 "time=%.2f ms"
             ),
-
             machine_id,
-
             score,
-
             threshold,
-
             decision,
-
             elapsed_ms,
         )
-
 
         return response
 
 
     except HTTPException:
-
         raise
-
-
     except Exception as exc:
-
-        logger.exception(
-            "Inference failed."
-        )
-
+        logger.exception("Inference failed.")
         raise HTTPException(
-
             status_code=500,
+            detail=f"Inference failed: {str(exc)}",
+        )
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
 
-            detail=(
-                "Inference failed: "
-                f"{str(exc)}"
-            ),
+
+# ============================================================
+# RECALIBRATE
+# ============================================================
+
+@app.post("/recalibrate")
+@app.get("/recalibrate")
+async def recalibrate_machine(machine_id: str = Form(None), machineId: str = Form(None)):
+    mid = machine_id or machineId or "fan_00"
+    norm_id = normalize_machine_id(mid)
+
+    if norm_id not in SUPPORTED_MACHINES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported machine ID '{mid}'. Supported: {', '.join(SUPPORTED_MACHINES.keys())}"
         )
 
+    # Force clear threshold cache for this machine ID
+    THRESHOLD_CACHE.pop(norm_id, None)
 
-    finally:
+    # Recompute threshold fresh from calibration split dataset
+    threshold = get_threshold(norm_id)
+    cal_files = get_calibration_files(norm_id)
 
-        # ====================================================
-        # CLEAN TEMP FILE
-        # ====================================================
+    logger.info(f"Recalibrated {norm_id} conformal threshold = {threshold:.6f}")
 
-        if temp_path is not None:
-
-            try:
-
-                temp_path.unlink(
-                    missing_ok=True
-                )
-
-            except Exception:
-
-                pass
+    return {
+        "status": "ok",
+        "machineId": norm_id,
+        "machine_id": norm_id,
+        "threshold": float(threshold),
+        "calibrationFileCount": len(cal_files),
+        "calibration_file_count": len(cal_files),
+        "message": f"Successfully recalibrated {norm_id} conformal threshold ({threshold:.6f}) from {len(cal_files)} calibration split files.",
+    }
 
 
 # ============================================================

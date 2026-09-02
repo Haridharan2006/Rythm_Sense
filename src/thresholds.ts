@@ -1,4 +1,4 @@
-import type { MachineId } from "../types/inference";
+import type { MachineId } from "./types";
 
 /**
  * Person C's conformal thresholds.

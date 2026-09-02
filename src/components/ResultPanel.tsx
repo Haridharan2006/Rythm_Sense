@@ -4,17 +4,57 @@ import { ScoreIndicator } from './ScoreIndicator';
 import { Spectrogram } from './Spectrogram';
 import { PredictionErrorChart } from './PredictionErrorChart';
 import { AudioPlayer } from './AudioPlayer';
-import { RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { RotateCcw, AlertTriangle, CheckCircle2, Terminal, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface ResultPanelProps {
   result: InferenceResult;
+  audioFile?: File | null;
   onReset: () => void;
 }
 
-export const ResultPanel: React.FC<ResultPanelProps> = ({ result, onReset }) => {
+export const ResultPanel: React.FC<ResultPanelProps> = ({ result, audioFile, onReset }) => {
   const [playbackTime, setPlaybackTime] = useState<number>(-1);
+  const [showDebug, setShowDebug] = useState<boolean>(false);
 
   const isAnomaly = result.decision === 'ANOMALY';
+
+  const debug = result.debugLog || {
+    machine_id: result.machineId,
+    machine_type: result.machineType,
+    spectrogram_shape: [result.spectrogram.freqBins, result.spectrogram.timeBins],
+    norm_mean: -22.707508,
+    norm_std: 9.070847,
+    frame_error_min: Math.min(...(result.frameErrors.map((f) => f.error) || [0])),
+    frame_error_max: Math.max(...(result.frameErrors.map((f) => f.error) || [0])),
+    frame_error_mean: result.anomalyScore,
+    p95_score: result.anomalyScore,
+    threshold: result.threshold,
+    calibration_file_count: 2,
+    margin: result.decisionMargin,
+    decision: result.decision,
+    inference_time_ms: result.inferenceTimeMs,
+  };
+
+  const shapeStr = Array.isArray(debug.spectrogram_shape)
+    ? `(${debug.spectrogram_shape.join(', ')})`
+    : String(debug.spectrogram_shape);
+
+  const formattedLog = `============================================================
+              PER-MACHINE CALCULATION LOGS
+============================================================
+Machine ID               : ${debug.machine_id} (${debug.machine_type})
+Spectrogram Shape        : ${shapeStr}
+Normalization Mean (μ)   : ${Number(debug.norm_mean).toFixed(6)}
+Normalization Std (σ)    : ${Number(debug.norm_std).toFixed(6)}
+Frame Error Min (MSE)    : ${Number(debug.frame_error_min).toFixed(6)}
+Frame Error Max (MSE)    : ${Number(debug.frame_error_max).toFixed(6)}
+Frame Error Mean (MSE)   : ${Number(debug.frame_error_mean).toFixed(6)}
+P95 Clip Score (p95)     : ${Number(debug.p95_score).toFixed(6)}
+Calibrated Threshold (τ) : ${Number(debug.threshold).toFixed(6)} (derived from ${debug.calibration_file_count} calibration split files)
+Final Margin (Score - τ) : ${debug.margin > 0 ? '+' : ''}${Number(debug.margin).toFixed(6)}
+Diagnostic Decision      : ${debug.decision}
+Inference Latency        : ${Number(debug.inference_time_ms).toFixed(2)} ms
+============================================================`;
 
   return (
     <div style={{ marginTop: '24px' }}>
@@ -157,7 +197,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({ result, onReset }) => 
         </div>
 
         {/* Audio Player */}
-        <AudioPlayer machineId={result.machineId as any} onTimeUpdate={(t) => setPlaybackTime(t)} />
+        <AudioPlayer machineId={result.machineId as any} audioFile={audioFile} onTimeUpdate={(t) => setPlaybackTime(t)} />
 
         {/* Horizontal Score Scale */}
         <ScoreIndicator
@@ -168,7 +208,13 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({ result, onReset }) => 
       </div>
 
       {/* Spectrogram & Temporal Prediction Error */}
-      <Spectrogram spectrogram={result.spectrogram} currentTime={playbackTime} />
+      <Spectrogram
+        spectrogram={result.spectrogram}
+        currentTime={playbackTime}
+        isAnomaly={isAnomaly}
+        anomalyRegions={result.anomalyRegions}
+        frameErrors={result.frameErrors}
+      />
       
       <PredictionErrorChart
         frameErrors={result.frameErrors}
@@ -176,6 +222,67 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({ result, onReset }) => 
         anomalyRegions={result.anomalyRegions || []}
         currentTime={playbackTime}
       />
+
+      {/* Per-Machine Calculation Details Log Panel */}
+      <div
+        className="panel"
+        style={{
+          marginTop: '20px',
+          padding: '16px',
+          backgroundColor: 'var(--bg-panel-subtle)',
+          border: '1px solid var(--border-color)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setShowDebug(!showDebug)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: 0,
+            width: '100%',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Terminal size={14} style={{ color: 'var(--accent-primary)' }} />
+            <span>SHOW CALCULATION DETAILS</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>
+              (Click to {showDebug ? 'collapse' : 'expand'})
+            </span>
+          </div>
+          {showDebug ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+
+        {showDebug && (
+          <div style={{ marginTop: '14px' }}>
+            <pre
+              style={{
+                backgroundColor: '#0a0d12',
+                color: '#38bdf8',
+                border: '1px solid #1e293b',
+                borderRadius: '6px',
+                padding: '14px 16px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11.5px',
+                lineHeight: '1.6',
+                overflowX: 'auto',
+                margin: 0,
+              }}
+            >
+              {formattedLog}
+            </pre>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -37,6 +37,7 @@ from extract_mel import extract_logmel
 from person_c_eval import (
     load_tcn_model,
     compute_clip_score,
+    compute_clip_score_with_details,
     conformal_threshold,
 )
 
@@ -469,14 +470,12 @@ def predict(
     )
 
 
-    score = compute_clip_score(
+    score, details = compute_clip_score_with_details(
         model,
         spectrogram,
     )
 
-
     score = float(score)
-
 
     # --------------------------------------------------------
     # PERSON C
@@ -486,19 +485,33 @@ def predict(
         machine_id
     )
 
-
     # --------------------------------------------------------
     # DECISION
     # --------------------------------------------------------
 
     if score > threshold:
-
         decision = "ANOMALY"
-
     else:
-
         decision = "NORMAL"
 
+    cal_files = get_calibration_files(machine_id)
+
+    debug_log = {
+        "machine_id": machine_id,
+        "machine_type": MACHINE_CONFIG[machine_id]["machine_type"],
+        "spectrogram_shape": list(spectrogram.shape),
+        "norm_mean": float(getattr(model, "mean", 0.0)),
+        "norm_std": float(getattr(model, "std", 1.0)),
+        "frame_error_min": float(details["frame_error_min"]),
+        "frame_error_max": float(details["frame_error_max"]),
+        "frame_error_mean": float(details["frame_error_mean"]),
+        "p95_score": float(score),
+        "threshold": float(threshold),
+        "calibration_file_count": len(cal_files),
+        "margin": float(score - threshold),
+        "decision": decision,
+        "inference_time_ms": 0.0,
+    }
 
     print(
         f"[Rythm Sense] "
@@ -507,12 +520,12 @@ def predict(
         f"Decision={decision}"
     )
 
-
     return (
         score,
         threshold,
         decision,
         spectrogram,
+        debug_log,
     )
 
 

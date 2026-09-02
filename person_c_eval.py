@@ -293,6 +293,70 @@ def compute_clip_score(
     return score
 
 
+def compute_clip_score_with_details(
+    model: nn.Module,
+    spectrogram: np.ndarray,
+    context_len: int = 6,
+    aggregation: str = "p95",
+    device: Union[str, torch.device] = "cpu"
+) -> Tuple[float, Dict[str, float]]:
+    """
+    Same as compute_clip_score, but returns a tuple of (score, details_dict)
+    containing frame_error_min, frame_error_max, frame_error_mean, p95_score, win_mse.
+    """
+    if not isinstance(spectrogram, np.ndarray):
+        raise TypeError(f"spectrogram must be a numpy.ndarray, got {type(spectrogram)}")
+
+    if spectrogram.ndim != 2 or spectrogram.shape[0] != 64:
+        raise ValueError(f"spectrogram must have shape (64, T), got shape {spectrogram.shape}")
+
+    n_mels, T = spectrogram.shape
+    if T < context_len + 1:
+        raise ValueError(
+            f"spectrogram length T={T} is too short for context_len={context_len}; "
+            f"requires at least context_len + 1 = {context_len + 1} frames."
+        )
+
+    if hasattr(model, "mean") and hasattr(model, "std") and model.mean is not None and model.std is not None:
+        mean = float(model.mean)
+        std = float(model.std)
+        S_norm = (spectrogram - mean) / (std + 1e-8)
+    elif hasattr(model, "norm_stats") and isinstance(model.norm_stats, dict):
+        mean = float(model.norm_stats["mean"])
+        std = float(model.norm_stats["std"])
+        S_norm = (spectrogram - mean) / (std + 1e-8)
+    else:
+        S_norm = spectrogram
+
+    num_windows = T - context_len
+    X_list = [S_norm[:, t : t + context_len] for t in range(num_windows)]
+    y_list = [S_norm[:, t + context_len] for t in range(num_windows)]
+
+    X_np = np.stack(X_list, axis=0)
+    y_np = np.stack(y_list, axis=0)
+
+    X_tensor = torch.from_numpy(X_np).float().to(device)
+    y_tensor = torch.from_numpy(y_np).float().to(device)
+
+    model.eval()
+    with torch.no_grad():
+        y_pred = model(X_tensor)
+
+    win_mse = torch.mean((y_pred - y_tensor) ** 2, dim=1).cpu().numpy()
+    score = float(np.percentile(win_mse, 95))
+
+    details = {
+        "frame_error_min": float(np.min(win_mse)),
+        "frame_error_max": float(np.max(win_mse)),
+        "frame_error_mean": float(np.mean(win_mse)),
+        "p95_score": score,
+        "win_mse": win_mse.tolist(),
+    }
+
+    return score, details
+
+
+
 # ============================================================
 # CONTRACT 3: CONFORMAL THRESHOLD CALIBRATION
 # ============================================================

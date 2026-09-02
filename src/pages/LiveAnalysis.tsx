@@ -200,7 +200,7 @@ export const LiveAnalysis: React.FC<LiveAnalysisProps> = ({ initialMachineId = '
       </div>
 
       {/* Diagnostic Result Area */}
-      {result && <ResultPanel result={result} onReset={handleReset} />}
+      {result && <ResultPanel result={result} audioFile={selectedFile} onReset={handleReset} />}
     </div>
   );
 };

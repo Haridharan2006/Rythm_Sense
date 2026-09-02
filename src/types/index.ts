@@ -36,6 +36,23 @@ export interface AudioMetadata {
   fileSize?: string;   // e.g. "312.5 KB"
 }
 
+export interface DebugLog {
+  machine_id: string;
+  machine_type: string;
+  spectrogram_shape: number[];
+  norm_mean: number;
+  norm_std: number;
+  frame_error_min: number;
+  frame_error_max: number;
+  frame_error_mean: number;
+  p95_score: number;
+  threshold: number;
+  calibration_file_count: number;
+  margin: number;
+  decision: string;
+  inference_time_ms: number;
+}
+
 export interface InferenceResult {
   machineId: string;
   machineType: string;
@@ -50,6 +67,7 @@ export interface InferenceResult {
   anomalyRegions?: AnomalyRegion[];
   audioMetadata: AudioMetadata;
   inferenceTimeMs: number;
+  debugLog?: DebugLog;
 }
 
 export interface MachineEvaluationItem {
