@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+handoff_data/*.npy
+windowed_data/
+__pycache__/

@@ -15,10 +15,14 @@ Verifies:
 """
 
 from pathlib import Path
+import json
+import glob
+import os
 import pytest
 import numpy as np
 import torch
 
+from extract_mel import extract_logmel
 from person_c_eval import (
     CausalTCN,
     load_tcn_model,
@@ -30,6 +34,7 @@ from person_c_eval import (
     compute_pauc,
     evaluate_machine_id
 )
+
 
 
 # ============================================================
@@ -279,10 +284,77 @@ def test_per_machine_isolation():
     assert np.isfinite(valve_res["threshold"])
 
 
+# ============================================================
+# TEST K: REAL DATASET EVALUATION (fan_00 & valve_00)
+# ============================================================
+
+def test_real_evaluation_fan00_and_valve00():
+    """
+    Evaluates real fan_00 and valve_00 dataset using calibration_splits.json,
+    real model checkpoints, real norm stats, and real audio wav files.
+    """
+    json_path = Path("handoff_data/calibration_splits.json")
+    assert json_path.exists(), f"calibration_splits.json not found at {json_path}"
+
+    with open(json_path, "r") as f:
+        splits = json.load(f)
+
+    machine_configs = [
+        ("fan_00", r"D:\hackatronics\6_dB_fan\fan\id_00"),
+        ("valve_00", r"D:\hackatronics\6_dB_valve\valve\id_00")
+    ]
+
+    for machine_id, machine_dir in machine_configs:
+        assert machine_id in splits, f"Machine ID {machine_id} missing from calibration_splits.json"
+
+        calib_files = splits[machine_id]["calibration"]
+        abnormal_files = glob.glob(os.path.join(machine_dir, "abnormal", "*.wav"))
+
+        assert len(calib_files) > 0, f"No calibration files found for {machine_id}"
+        assert len(abnormal_files) > 0, f"No abnormal files found for {machine_id}"
+
+        ckpt_path = Path(f"checkpoints/tcn_{machine_id}.pt")
+        norm_path = Path(f"norm_stats_{machine_id}.npy")
+
+        assert ckpt_path.exists(), f"Checkpoint missing: {ckpt_path}"
+        assert norm_path.exists(), f"Norm stats missing: {norm_path}"
+
+        model = load_tcn_model(checkpoint_path=ckpt_path, norm_stats_path=norm_path)
+
+        calib_specs = [extract_logmel(fp) for fp in calib_files]
+        abnormal_specs = [extract_logmel(fp) for fp in abnormal_files]
+
+        calib_scores = [compute_clip_score(model, spec) for spec in calib_specs]
+        abnormal_scores = [compute_clip_score(model, spec) for spec in abnormal_specs]
+
+        threshold = conformal_threshold(calib_scores, alpha=0.05)
+
+        test_scores = calib_scores + abnormal_scores
+        test_labels = [0] * len(calib_scores) + [1] * len(abnormal_scores)
+
+        auc = compute_auc(test_labels, test_scores)
+        pauc = compute_pauc(test_labels, test_scores, max_fpr=0.1)
+
+        # Sanity Checks
+        assert np.isfinite(threshold), f"Threshold is non-finite for {machine_id}: {threshold}"
+        assert not np.isnan(test_scores).any(), f"NaN values found in test scores for {machine_id}"
+        assert not all(s == 0.0 for s in test_scores), f"All scores are 0.0 for {machine_id}"
+        assert len(set(test_scores)) > 1, f"All scores are identical for {machine_id}"
+        assert 0.0 <= auc <= 1.0, f"Invalid AUC value for {machine_id}: {auc}"
+        assert 0.0 <= pauc <= 1.0, f"Invalid pAUC value for {machine_id}: {pauc}"
+
+        print(f"\n   [{machine_id} Real Data Evaluation Results]")
+        print(f"   - Calibration Normal Clips : {len(calib_scores)}")
+        print(f"   - Abnormal Test Clips     : {len(abnormal_scores)}")
+        print(f"   - Conformal Threshold (q) : {threshold:.6f}")
+        print(f"   - ROC AUC                 : {auc:.6f}")
+        print(f"   - Partial AUC (pAUC)      : {pauc:.6f}")
+
+
 def run_all_tests_manually():
     """Manual runner if pytest is executed directly via python script."""
     print("=" * 60)
-    print("RUNNING PERSON C STAGE 1 UNIT TESTS")
+    print("RUNNING PERSON C STAGE 1 UNIT TESTS & REAL DATA EVALUATION")
     print("=" * 60)
 
     tests = [
@@ -296,6 +368,7 @@ def run_all_tests_manually():
         ("Test H: ROC AUC & Single Class Validation", test_compute_auc_deterministic),
         ("Test I: Partial AUC (pAUC) Calculation", test_compute_pauc_deterministic),
         ("Test J: Per-Machine ID Isolation", test_per_machine_isolation),
+        ("Test K: Real Dataset Evaluation (fan_00 & valve_00)", test_real_evaluation_fan00_and_valve00),
     ]
 
     passed = 0
@@ -316,6 +389,7 @@ def run_all_tests_manually():
 
     if failed > 0:
         raise RuntimeError(f"{failed} tests failed!")
+
 
 
 if __name__ == "__main__":
