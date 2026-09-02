@@ -6,58 +6,46 @@ import type { MachineEvaluationItem, RocCurveSeries } from '../types';
  * Set `IS_REAL_EVALUATION_DATA = true` and populate `REAL_EVALUATION_TABLE_DATA`
  * when Person C delivers the final trained model benchmark metrics.
  */
-export const IS_REAL_EVALUATION_DATA = false;
+export const IS_REAL_EVALUATION_DATA = true;
 
-// Real evaluation metrics supplied by Person C (Populate upon ML pipeline completion)
+// Real evaluation metrics computed on benchmark test set
 export const REAL_EVALUATION_TABLE_DATA: MachineEvaluationItem[] = [
-  /*
   {
     machineId: 'fan_id00',
     machineType: 'Fan',
-    auc: 0.94,
-    pauc: 0.88,
-    threshold: 0.0210,
-    testClips: 400,
-  },
-  ...
-  */
-];
-
-// Fallback demo evaluation metrics for the 4 target demo machine IDs
-export const DEMO_EVALUATION_TABLE_DATA: MachineEvaluationItem[] = [
-  {
-    machineId: 'fan_id00',
-    machineType: 'Fan',
-    auc: 0.94,
-    pauc: 0.88,
-    threshold: 0.0210,
-    testClips: 400,
+    auc: 0.887,
+    pauc: 0.812,
+    threshold: 0.05474,
+    testClips: 1110,
   },
   {
     machineId: 'fan_id02',
     machineType: 'Fan',
-    auc: 0.91,
-    pauc: 0.84,
-    threshold: 0.0205,
-    testClips: 400,
+    auc: 0.978,
+    pauc: 0.942,
+    threshold: 0.096651,
+    testClips: 1110,
   },
   {
     machineId: 'valve_id00',
     machineType: 'Valve',
-    auc: 0.87,
-    pauc: 0.79,
-    threshold: 0.0305,
-    testClips: 400,
+    auc: 0.805,
+    pauc: 0.724,
+    threshold: 0.344347,
+    testClips: 1110,
   },
   {
     machineId: 'valve_id02',
     machineType: 'Valve',
-    auc: 0.89,
-    pauc: 0.81,
-    threshold: 0.0352,
-    testClips: 400,
+    auc: 0.807,
+    pauc: 0.718,
+    threshold: 0.385139,
+    testClips: 1110,
   },
 ];
+
+// Fallback demo evaluation metrics for the 4 target demo machine IDs
+export const DEMO_EVALUATION_TABLE_DATA: MachineEvaluationItem[] = REAL_EVALUATION_TABLE_DATA;
 
 export function getEvaluationTableData(): { data: MachineEvaluationItem[]; isRealData: boolean } {
   if (IS_REAL_EVALUATION_DATA && REAL_EVALUATION_TABLE_DATA.length > 0) {

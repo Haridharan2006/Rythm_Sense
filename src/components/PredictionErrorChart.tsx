@@ -73,7 +73,7 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
         {/* Legend */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '12px', height: '3px', backgroundColor: '#181816', display: 'inline-block' }}></span>
+            <span style={{ width: '12px', height: '3px', backgroundColor: 'var(--text-primary)', display: 'inline-block' }}></span>
             <span style={{ color: 'var(--text-secondary)' }}>Prediction error ||x_t - x̂_t||_2</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -101,7 +101,7 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
                   y1={y}
                   x2={svgWidth - padding.right}
                   y2={y}
-                  stroke="#e6e6e2"
+                  stroke="var(--border-color-subtle)"
                   strokeDasharray="2,2"
                 />
                 <text
@@ -110,7 +110,7 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
                   textAnchor="end"
                   fontFamily="IBM Plex Mono"
                   fontSize="10"
-                  fill="#71717a"
+                  fill="var(--text-secondary)"
                 >
                   {tick.toFixed(3)}
                 </text>
@@ -128,14 +128,14 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
                   y1={padding.top}
                   x2={x}
                   y2={svgHeight - padding.bottom}
-                  stroke="#f1f1ef"
+                  stroke="var(--border-color-subtle)"
                 />
                 <line
                   x1={x}
                   y1={svgHeight - padding.bottom}
                   x2={x}
                   y2={svgHeight - padding.bottom + 5}
-                  stroke="#84847d"
+                  stroke="var(--border-dark)"
                 />
                 <text
                   x={x}
@@ -143,7 +143,7 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
                   textAnchor="middle"
                   fontFamily="IBM Plex Mono"
                   fontSize="10"
-                  fill="#71717a"
+                  fill="var(--text-secondary)"
                 >
                   {t}.0s
                 </text>
@@ -156,7 +156,7 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
             <path
               key={idx}
               d={path}
-              fill="rgba(220, 38, 38, 0.22)"
+              fill="rgba(220, 38, 38, 0.28)"
               stroke="none"
             />
           ))}
@@ -175,8 +175,8 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
           {/* Main Temporal Prediction Error Curve Line */}
           <polyline
             fill="none"
-            stroke="#181816"
-            strokeWidth="2"
+            stroke="var(--text-primary)"
+            strokeWidth="2.2"
             points={pointsString}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -189,8 +189,8 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
               y1={padding.top}
               x2={getX(currentTime)}
               y2={svgHeight - padding.bottom}
-              stroke="#2563eb"
-              strokeWidth="1.5"
+              stroke="#38bdf8"
+              strokeWidth="2"
             />
           )}
 
@@ -205,8 +205,8 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
                 cx={cx}
                 cy={cy}
                 r={isHovered ? 5 : pt.error > threshold ? 3 : 0}
-                fill={pt.error > threshold ? 'var(--status-anomaly)' : '#181816'}
-                stroke="#ffffff"
+                fill={pt.error > threshold ? 'var(--status-anomaly)' : 'var(--text-primary)'}
+                stroke="var(--bg-panel)"
                 strokeWidth={1.5}
                 style={{ cursor: 'pointer' }}
                 onMouseEnter={() => setHoveredPoint(pt)}
@@ -220,15 +220,17 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
               <rect
                 width="120"
                 height="34"
-                fill="#181816"
+                fill="var(--bg-panel-subtle)"
+                stroke="var(--border-dark)"
+                strokeWidth="1"
                 rx="3"
-                opacity="0.92"
+                opacity="0.96"
               />
               <text
                 x="60"
                 y="15"
                 textAnchor="middle"
-                fill="#ffffff"
+                fill="var(--text-primary)"
                 fontFamily="IBM Plex Mono"
                 fontSize="10"
                 fontWeight="bold"
@@ -239,9 +241,10 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
                 x="60"
                 y="27"
                 textAnchor="middle"
-                fill={hoveredPoint.error > threshold ? '#fecaca' : '#bbf7d0'}
+                fill={hoveredPoint.error > threshold ? 'var(--status-anomaly)' : 'var(--status-normal)'}
                 fontFamily="IBM Plex Mono"
                 fontSize="10"
+                fontWeight="bold"
               >
                 Err: {hoveredPoint.error.toFixed(4)}
               </text>
@@ -255,8 +258,8 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
             textAnchor="middle"
             fontFamily="Inter"
             fontSize="11"
-            fill="#575752"
-            fontWeight="500"
+            fill="var(--text-secondary)"
+            fontWeight="600"
           >
             Time (seconds)
           </text>
@@ -265,8 +268,8 @@ export const PredictionErrorChart: React.FC<PredictionErrorChartProps> = ({
             textAnchor="middle"
             fontFamily="Inter"
             fontSize="11"
-            fill="#575752"
-            fontWeight="500"
+            fill="var(--text-secondary)"
+            fontWeight="600"
           >
             Prediction Error (L2 norm)
           </text>
