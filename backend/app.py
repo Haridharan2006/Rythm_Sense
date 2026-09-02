@@ -306,6 +306,18 @@ async def predict_audio(
             float
         )
 
+        # Build per-frame error points for frontend charts and animation.
+        # Each entry: { time, error, isAnomaly } — ~307 frames for a 10s clip at hop=512/16kHz.
+        raw_frame_errors = debug_log.get("frame_errors", [])
+        frame_errors_payload = [
+            {
+                "time": round(i * 512 / 16000, 4),
+                "error": float(e),
+                "isAnomaly": float(e) > threshold,
+            }
+            for i, e in enumerate(raw_frame_errors)
+        ]
+
         response = {
             "machineId": machine_id,
             "machineType": SUPPORTED_MACHINES[machine_id],
@@ -321,6 +333,7 @@ async def predict_audio(
             "decision": decision,
             "debugLog": debug_log,
             "debug_log": debug_log,
+            "frameErrors": frame_errors_payload,
             "spectrogram": {
                 "timeBins": int(spectrogram.shape[1]),
                 "freqBins": int(spectrogram.shape[0]),

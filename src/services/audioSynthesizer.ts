@@ -133,3 +133,60 @@ export function playSyntheticMachineAudio(
     duration,
   };
 }
+
+/**
+ * Creates a valid 16kHz mono 10-second PCM WAV File object for machine presets
+ */
+export function createSyntheticWavFile(machineId: MachineId): File {
+  const sampleRate = 16000;
+  const duration = 10.0;
+  const numSamples = sampleRate * duration;
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+
+  // RIFF header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeString(view, 8, 'WAVE');
+  // fmt chunk
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // fmt chunk size
+  view.setUint16(20, 1, true);  // PCM format
+  view.setUint16(22, 1, true);  // Mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // Byte rate
+  view.setUint16(32, 2, true);  // Block align
+  view.setUint16(34, 16, true); // Bits per sample
+  // data chunk
+  writeString(view, 36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+
+  // Generate PCM 16-bit audio data
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    let sample = 0;
+    if (machineId.includes('fan')) {
+      sample += 0.3 * Math.sin(2 * Math.PI * 120 * t);
+      sample += 0.15 * Math.sin(2 * Math.PI * 360 * t);
+      sample += 0.05 * (Math.random() * 2 - 1);
+    } else {
+      sample += 0.2 * Math.sin(2 * Math.PI * 80 * t);
+      sample += 0.08 * (Math.random() * 2 - 1);
+    }
+    const clamped = Math.max(-0.95, Math.min(0.95, sample));
+    const pcm = clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF;
+    view.setInt16(offset, pcm, true);
+    offset += 2;
+  }
+
+  const blob = new Blob([buffer], { type: 'audio/wav' });
+  return new File([blob], `${machineId}_preset_recording.wav`, { type: 'audio/wav' });
+}
+
+function writeString(view: DataView, offset: number, string: string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+

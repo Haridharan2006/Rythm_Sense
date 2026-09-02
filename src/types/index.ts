@@ -51,6 +51,8 @@ export interface DebugLog {
   margin: number;
   decision: string;
   inference_time_ms: number;
+  /** Full per-frame MSE array — additive field for pipeline animation (Stage 4). */
+  frame_errors?: number[];
 }
 
 export interface InferenceResult {

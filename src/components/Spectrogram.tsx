@@ -22,6 +22,10 @@ export const Spectrogram: React.FC<SpectrogramProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [colormap, setColormap] = useState<Colormap>(isAnomaly ? 'thermal' : 'inferno');
 
+  useEffect(() => {
+    setColormap(isAnomaly ? 'thermal' : 'inferno');
+  }, [isAnomaly]);
+
   // Scientific Colormap color mappers (returns [r, g, b])
   const getColor = (v: number, cmap: Colormap): [number, number, number] => {
     const val = Math.max(0, Math.min(1, v));

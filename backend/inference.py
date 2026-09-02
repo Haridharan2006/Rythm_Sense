@@ -511,6 +511,10 @@ def predict(
         "margin": float(score - threshold),
         "decision": decision,
         "inference_time_ms": 0.0,
+        # Additive: full per-frame MSE array for frontend animation (Stage 4).
+        # win_mse was already computed by compute_clip_score_with_details;
+        # this just exposes it instead of discarding it.
+        "frame_errors": [float(e) for e in details.get("win_mse", [])],
     }
 
     print(

@@ -10,9 +10,11 @@ interface ResultPanelProps {
   result: InferenceResult;
   audioFile?: File | null;
   onReset: () => void;
+  /** When true, cards stagger-fade in (Stage 7 of PipelineViz). False/undefined = instant. */
+  animated?: boolean;
 }
 
-export const ResultPanel: React.FC<ResultPanelProps> = ({ result, audioFile, onReset }) => {
+export const ResultPanel: React.FC<ResultPanelProps> = ({ result, audioFile, onReset, animated = false }) => {
   const [playbackTime, setPlaybackTime] = useState<number>(-1);
   const [showDebug, setShowDebug] = useState<boolean>(false);
 
@@ -59,7 +61,7 @@ Inference Latency        : ${Number(debug.inference_time_ms).toFixed(2)} ms
   return (
     <div style={{ marginTop: '24px' }}>
       {/* Result Metrics Grid Card */}
-      <div className="panel" style={{ padding: '20px' }}>
+      <div className="panel pipeline-result-card" style={{ padding: '20px', animationDelay: animated ? '0ms' : '0ms' }}>
         <div
           style={{
             display: 'flex',
@@ -208,29 +210,34 @@ Inference Latency        : ${Number(debug.inference_time_ms).toFixed(2)} ms
       </div>
 
       {/* Spectrogram & Temporal Prediction Error */}
-      <Spectrogram
-        spectrogram={result.spectrogram}
-        currentTime={playbackTime}
-        isAnomaly={isAnomaly}
-        anomalyRegions={result.anomalyRegions}
-        frameErrors={result.frameErrors}
-      />
+      <div className="pipeline-result-card" style={{ animationDelay: animated ? '120ms' : '0ms' }}>
+        <Spectrogram
+          spectrogram={result.spectrogram}
+          currentTime={playbackTime}
+          isAnomaly={isAnomaly}
+          anomalyRegions={result.anomalyRegions}
+          frameErrors={result.frameErrors}
+        />
+      </div>
       
-      <PredictionErrorChart
-        frameErrors={result.frameErrors}
-        threshold={result.threshold}
-        anomalyRegions={result.anomalyRegions || []}
-        currentTime={playbackTime}
-      />
+      <div className="pipeline-result-card" style={{ animationDelay: animated ? '220ms' : '0ms' }}>
+        <PredictionErrorChart
+          frameErrors={result.frameErrors}
+          threshold={result.threshold}
+          anomalyRegions={result.anomalyRegions || []}
+          currentTime={playbackTime}
+        />
+      </div>
 
       {/* Per-Machine Calculation Details Log Panel */}
       <div
-        className="panel"
+        className="panel pipeline-result-card"
         style={{
           marginTop: '20px',
           padding: '16px',
           backgroundColor: 'var(--bg-panel-subtle)',
           border: '1px solid var(--border-color)',
+          animationDelay: animated ? '340ms' : '0ms',
         }}
       >
         <button

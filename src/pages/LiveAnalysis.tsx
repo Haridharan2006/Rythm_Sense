@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Header } from '../components/Header';
 import { MachineSelector } from '../components/MachineSelector';
 import { AudioUploader } from '../components/AudioUploader';
-import { ResultPanel } from '../components/ResultPanel';
+import { PipelineViz } from '../components/PipelineViz';
 import type { MachineId, InferenceResult } from '../types';
 import { analyzeAudio } from '../services/inference';
 import { Play, Loader2, AlertTriangle } from 'lucide-react';
@@ -37,6 +37,7 @@ export const LiveAnalysis: React.FC<LiveAnalysisProps> = ({ initialMachineId = '
 
   const handleAnalyze = async () => {
     setErrorMsg(null);
+    setResult(null); // Clear previous result on new analysis start
     setIsAnalyzing(true);
     setProgressPercent(0);
     setProgressStage('Running acoustic analysis...');
@@ -199,8 +200,15 @@ export const LiveAnalysis: React.FC<LiveAnalysisProps> = ({ initialMachineId = '
         )}
       </div>
 
-      {/* Diagnostic Result Area */}
-      {result && <ResultPanel result={result} audioFile={selectedFile} onReset={handleReset} />}
+      {/* Diagnostic Result Area — animated 7-stage pipeline with unique key to force clean remount per analysis */}
+      {result && (
+        <PipelineViz
+          key={`${result.machineId}-${result.anomalyScore}-${result.inferenceTimeMs}`}
+          result={result}
+          audioFile={selectedFile}
+          onReset={handleReset}
+        />
+      )}
     </div>
   );
 };

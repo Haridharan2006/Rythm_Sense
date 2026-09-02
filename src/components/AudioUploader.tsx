@@ -3,6 +3,7 @@ import type { MachineId } from '../types';
 import { DEMO_MACHINE_IDS } from '../config/machines';
 import { Upload, FileAudio, AlertCircle, CheckCircle2, Music } from 'lucide-react';
 import { validateAudioFile } from '../services/inference';
+import { createSyntheticWavFile } from '../services/audioSynthesizer';
 
 interface AudioUploaderProps {
   selectedFile: File | null;
@@ -49,7 +50,8 @@ export const AudioUploader: React.FC<AudioUploaderProps> = ({
 
   const handleLoadPreset = (presetId: MachineId) => {
     setErrorMsg(null);
-    onFileSelect(null, presetId);
+    const synthFile = createSyntheticWavFile(presetId);
+    onFileSelect(synthFile, presetId);
   };
 
   return (
