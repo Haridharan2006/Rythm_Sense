@@ -21,8 +21,14 @@ Person C - Conformal calibration
 NORMAL / ANOMALY
 """
 
+import sys
 from pathlib import Path
 from typing import Dict, Tuple
+
+# Ensure project root is in sys.path for root module imports
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 import json
 import numpy as np
@@ -39,7 +45,7 @@ from person_c_eval import (
 # PATHS
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = ROOT_DIR
 
 CHECKPOINT_DIR = BASE_DIR / "checkpoints"
 
@@ -63,6 +69,16 @@ MACHINE_CONFIG = {
             BASE_DIR / "norm_stats_fan_00.npy",
     },
 
+    "fan_02": {
+        "machine_type": "Fan",
+
+        "checkpoint":
+            CHECKPOINT_DIR / "tcn_fan_02.pt",
+
+        "norm_stats":
+            BASE_DIR / "norm_stats_fan_02.npy",
+    },
+
     "valve_00": {
         "machine_type": "Valve",
 
@@ -72,12 +88,24 @@ MACHINE_CONFIG = {
         "norm_stats":
             BASE_DIR / "norm_stats_valve_00.npy",
     },
+
+    "valve_02": {
+        "machine_type": "Valve",
+
+        "checkpoint":
+            CHECKPOINT_DIR / "tcn_valve_02.pt",
+
+        "norm_stats":
+            BASE_DIR / "norm_stats_valve_02.npy",
+    },
 }
 
 
 SUPPORTED_MACHINES = {
     "fan_00": "Fan",
+    "fan_02": "Fan",
     "valve_00": "Valve",
+    "valve_02": "Valve",
 }
 
 
@@ -85,16 +113,13 @@ SUPPORTED_MACHINES = {
 # OPTIONAL FRONTEND COMPATIBILITY
 # ============================================================
 
-# Your older frontend used names such as fan_id00.
-# We translate them internally to the real handoff IDs.
+# Translate frontend UI IDs to real handoff machine IDs.
 
 MACHINE_ALIASES = {
     "fan_id00": "fan_00",
+    "fan_id02": "fan_02",
     "valve_id00": "valve_00",
-
-    # Out-of-scope IDs.
-    "fan_id02": "fan_00",
-    "valve_id02": "valve_00",
+    "valve_id02": "valve_02",
 }
 
 
@@ -400,7 +425,7 @@ def predict(
 
         raise ValueError(
             f"Unsupported machine ID '{machine_id}'. "
-            f"Use fan_00 or valve_00."
+            f"Supported machines: {', '.join(MACHINE_CONFIG.keys())}."
         )
 
 
