@@ -81,7 +81,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({ result, onReset }) => 
               {result.machineId}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              {result.machineType} ({result.acousticBehavior.includes('Periodic') ? 'Periodic' : 'Event-driven'})
+              {result.machineType} ({(result.acousticBehavior || '').includes('Periodic') ? 'Periodic' : 'Event-driven'})
             </div>
           </div>
 
@@ -157,7 +157,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({ result, onReset }) => 
         </div>
 
         {/* Audio Player */}
-        <AudioPlayer machineId={result.machineId} onTimeUpdate={(t) => setPlaybackTime(t)} />
+        <AudioPlayer machineId={result.machineId as any} onTimeUpdate={(t) => setPlaybackTime(t)} />
 
         {/* Horizontal Score Scale */}
         <ScoreIndicator
@@ -173,7 +173,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({ result, onReset }) => 
       <PredictionErrorChart
         frameErrors={result.frameErrors}
         threshold={result.threshold}
-        anomalyRegions={result.anomalyRegions}
+        anomalyRegions={result.anomalyRegions || []}
         currentTime={playbackTime}
       />
     </div>

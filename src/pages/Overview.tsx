@@ -11,7 +11,7 @@ interface OverviewProps {
 export const Overview: React.FC<OverviewProps> = ({ onNavigateToLive, onNavigateToScreen }) => {
   const pipelineSteps = [
     { id: '1', name: 'AUDIO', desc: 'Raw Waveform (16kHz WAV)' },
-    { id: '2', name: 'LOG-MEL', desc: '128-Bin Spectrogram' },
+    { id: '2', name: 'LOG-MEL', desc: '64-Bin Log-Mel Spectrogram' },
     { id: '3', name: 'TCN PREDICTION', desc: 'Sequence Forecasting' },
     { id: '4', name: 'ERROR', desc: 'Temporal Residual' },
     { id: '5', name: 'CALIBRATION', desc: 'Conformal Quantile' },
@@ -149,56 +149,6 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigateToLive, onNavigate
                   Analyze <ChevronRight size={12} />
                 </button>
               </div>
-
-              <div
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--bg-panel)',
-                  border: '1px solid var(--border-color-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <span className="mono-val" style={{ color: 'var(--text-primary)', fontSize: '12px' }}>fan_id04</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>Exhaust Condenser #04 (τ_cal = 0.0195)</span>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ fontSize: '11px', padding: '3px 8px' }}
-                  onClick={() => onNavigateToLive('fan_id04')}
-                >
-                  Analyze <ChevronRight size={12} />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--bg-panel)',
-                  border: '1px solid var(--border-color-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <span className="mono-val" style={{ color: 'var(--text-primary)', fontSize: '12px' }}>fan_id06</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>Radial Intake #06 (τ_cal = 0.0220)</span>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ fontSize: '11px', padding: '3px 8px' }}
-                  onClick={() => onNavigateToLive('fan_id06')}
-                >
-                  Analyze <ChevronRight size={12} />
-                </button>
-              </div>
             </div>
           </div>
 
@@ -214,7 +164,7 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigateToLive, onNavigate
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  VALVE (Pneumatic, Solenoid & Hydraulic)
+                  VALVE (Pneumatic & Solenoid)
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                   Event-driven / burst-like acoustic behavior
@@ -287,56 +237,6 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigateToLive, onNavigate
                   Analyze <ChevronRight size={12} />
                 </button>
               </div>
-
-              <div
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--bg-panel)',
-                  border: '1px solid var(--border-color-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <span className="mono-val" style={{ color: 'var(--text-primary)', fontSize: '12px' }}>valve_id04</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>Hydraulic Valve #04 (τ_cal = 0.0290)</span>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ fontSize: '11px', padding: '3px 8px' }}
-                  onClick={() => onNavigateToLive('valve_id04')}
-                >
-                  Analyze <ChevronRight size={12} />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--bg-panel)',
-                  border: '1px solid var(--border-color-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <span className="mono-val" style={{ color: 'var(--text-primary)', fontSize: '12px' }}>valve_id06</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>Check Valve #06 (τ_cal = 0.0340)</span>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ fontSize: '11px', padding: '3px 8px' }}
-                  onClick={() => onNavigateToLive('valve_id06')}
-                >
-                  Analyze <ChevronRight size={12} />
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -361,7 +261,7 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigateToLive, onNavigate
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginTop: '12px' }}>
           {[
-            { step: '1', title: 'Log-Mel Spectrogram', desc: 'Convert raw 16kHz audio waveforms into 128-bin log-mel energy representations.' },
+            { step: '1', title: 'Log-Mel Spectrogram', desc: 'Convert raw 16kHz audio waveforms into 64-bin log-mel energy representations.' },
             { step: '2', title: 'TCN Predictive Coding', desc: 'Temporal Convolutional Network models temporal dependencies under normal operation.' },
             { step: '3', title: 'Prediction Error', desc: 'Frame-level L2 residual error quantifies departure from expected acoustic dynamics.' },
             { step: '4', title: 'Conformal Calibration', desc: 'Establishes machine-specific non-parametric threshold at target false-positive rate.' },

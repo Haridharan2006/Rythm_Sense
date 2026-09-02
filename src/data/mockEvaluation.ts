@@ -1,6 +1,30 @@
 import type { MachineEvaluationItem, RocCurveSeries } from '../types';
 
-export const EVALUATION_TABLE_DATA: MachineEvaluationItem[] = [
+/**
+ * EVALUATION DATA SOURCE CONFIGURATION
+ * 
+ * Set `IS_REAL_EVALUATION_DATA = true` and populate `REAL_EVALUATION_TABLE_DATA`
+ * when Person C delivers the final trained model benchmark metrics.
+ */
+export const IS_REAL_EVALUATION_DATA = false;
+
+// Real evaluation metrics supplied by Person C (Populate upon ML pipeline completion)
+export const REAL_EVALUATION_TABLE_DATA: MachineEvaluationItem[] = [
+  /*
+  {
+    machineId: 'fan_id00',
+    machineType: 'Fan',
+    auc: 0.94,
+    pauc: 0.88,
+    threshold: 0.0210,
+    testClips: 400,
+  },
+  ...
+  */
+];
+
+// Fallback demo evaluation metrics for the 4 target demo machine IDs
+export const DEMO_EVALUATION_TABLE_DATA: MachineEvaluationItem[] = [
   {
     machineId: 'fan_id00',
     machineType: 'Fan',
@@ -15,22 +39,6 @@ export const EVALUATION_TABLE_DATA: MachineEvaluationItem[] = [
     auc: 0.91,
     pauc: 0.84,
     threshold: 0.0205,
-    testClips: 400,
-  },
-  {
-    machineId: 'fan_id04',
-    machineType: 'Fan',
-    auc: 0.95,
-    pauc: 0.89,
-    threshold: 0.0195,
-    testClips: 400,
-  },
-  {
-    machineId: 'fan_id06',
-    machineType: 'Fan',
-    auc: 0.92,
-    pauc: 0.86,
-    threshold: 0.0220,
     testClips: 400,
   },
   {
@@ -49,23 +57,16 @@ export const EVALUATION_TABLE_DATA: MachineEvaluationItem[] = [
     threshold: 0.0352,
     testClips: 400,
   },
-  {
-    machineId: 'valve_id04',
-    machineType: 'Valve',
-    auc: 0.90,
-    pauc: 0.83,
-    threshold: 0.0290,
-    testClips: 400,
-  },
-  {
-    machineId: 'valve_id06',
-    machineType: 'Valve',
-    auc: 0.88,
-    pauc: 0.80,
-    threshold: 0.0340,
-    testClips: 400,
-  },
 ];
+
+export function getEvaluationTableData(): { data: MachineEvaluationItem[]; isRealData: boolean } {
+  if (IS_REAL_EVALUATION_DATA && REAL_EVALUATION_TABLE_DATA.length > 0) {
+    return { data: REAL_EVALUATION_TABLE_DATA, isRealData: true };
+  }
+  return { data: DEMO_EVALUATION_TABLE_DATA, isRealData: false };
+}
+
+export const EVALUATION_TABLE_DATA = DEMO_EVALUATION_TABLE_DATA;
 
 // Helper to generate ROC curve points given a target AUC
 function generateRocPoints(targetAuc: number): { fpr: number; tpr: number }[] {
@@ -87,10 +88,10 @@ function generateRocPoints(targetAuc: number): { fpr: number; tpr: number }[] {
 export const ROC_CURVES: Record<string, RocCurveSeries> = {
   all: {
     machineId: 'all',
-    name: 'All Machines (Aggregate Mean AUC = 0.908)',
-    auc: 0.908,
+    name: 'All Machines (Aggregate Mean AUC = 0.903)',
+    auc: 0.903,
     color: '#2563eb',
-    points: generateRocPoints(0.908),
+    points: generateRocPoints(0.903),
   },
   fan_id00: {
     machineId: 'fan_id00',
@@ -106,20 +107,6 @@ export const ROC_CURVES: Record<string, RocCurveSeries> = {
     color: '#0d9488',
     points: generateRocPoints(0.91),
   },
-  fan_id04: {
-    machineId: 'fan_id04',
-    name: 'fan_id04 (AUC = 0.950)',
-    auc: 0.95,
-    color: '#10b981',
-    points: generateRocPoints(0.95),
-  },
-  fan_id06: {
-    machineId: 'fan_id06',
-    name: 'fan_id06 (AUC = 0.920)',
-    auc: 0.92,
-    color: '#14b8a6',
-    points: generateRocPoints(0.92),
-  },
   valve_id00: {
     machineId: 'valve_id00',
     name: 'valve_id00 (AUC = 0.870)',
@@ -133,19 +120,5 @@ export const ROC_CURVES: Record<string, RocCurveSeries> = {
     auc: 0.89,
     color: '#ea580c',
     points: generateRocPoints(0.89),
-  },
-  valve_id04: {
-    machineId: 'valve_id04',
-    name: 'valve_id04 (AUC = 0.900)',
-    auc: 0.90,
-    color: '#f59e0b',
-    points: generateRocPoints(0.90),
-  },
-  valve_id06: {
-    machineId: 'valve_id06',
-    name: 'valve_id06 (AUC = 0.880)',
-    auc: 0.88,
-    color: '#c2410c',
-    points: generateRocPoints(0.88),
   },
 };

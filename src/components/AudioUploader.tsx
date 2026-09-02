@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { MachineId } from '../types';
+import { DEMO_MACHINE_IDS } from '../config/machines';
 import { Upload, FileAudio, AlertCircle, CheckCircle2, Music } from 'lucide-react';
 import { validateAudioFile } from '../services/inference';
 
@@ -179,7 +180,7 @@ export const AudioUploader: React.FC<AudioUploaderProps> = ({
           <span>Quick Hackathon Test Recordings:</span>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {(['fan_id00', 'fan_id02', 'fan_id04', 'fan_id06', 'valve_id00', 'valve_id02', 'valve_id04', 'valve_id06'] as MachineId[]).map((id) => (
+          {(DEMO_MACHINE_IDS as readonly MachineId[]).map((id) => (
             <button
               key={id}
               type="button"

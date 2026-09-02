@@ -4,8 +4,8 @@ import { MachineSelector } from '../components/MachineSelector';
 import { AudioUploader } from '../components/AudioUploader';
 import { ResultPanel } from '../components/ResultPanel';
 import type { MachineId, InferenceResult } from '../types';
-import { predict } from '../services/inference';
-import { Play, Loader2 } from 'lucide-react';
+import { analyzeAudio } from '../services/inference';
+import { Play, Loader2, AlertTriangle } from 'lucide-react';
 
 interface LiveAnalysisProps {
   initialMachineId?: MachineId;
@@ -20,9 +20,11 @@ export const LiveAnalysis: React.FC<LiveAnalysisProps> = ({ initialMachineId = '
   const [progressStage, setProgressStage] = useState<string>('');
   const [progressPercent, setProgressPercent] = useState<number>(0);
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [result, setResult] = useState<InferenceResult | null>(null);
 
   const handleFileSelect = (file: File | null, presetId?: MachineId) => {
+    setErrorMsg(null);
     if (presetId) {
       setPresetLoadedId(presetId);
       setSelectedMachineId(presetId);
@@ -34,20 +36,27 @@ export const LiveAnalysis: React.FC<LiveAnalysisProps> = ({ initialMachineId = '
   };
 
   const handleAnalyze = async () => {
+    setErrorMsg(null);
     setIsAnalyzing(true);
     setProgressPercent(0);
-    setProgressStage('Initializing model execution pipeline...');
+    setProgressStage('Running acoustic analysis...');
 
     try {
-      const res = await predict(selectedFile, selectedMachineId, {
+      const res = await analyzeAudio(selectedFile, selectedMachineId, {
         onProgress: (stage, pct) => {
           setProgressStage(stage);
           setProgressPercent(pct);
         },
       });
       setResult(res);
-    } catch (err) {
-      console.error('Inference error:', err);
+    } catch (err: unknown) {
+      console.error('Inference execution failure:', err);
+      if (err instanceof Error) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg('An unexpected runtime error occurred during inference.');
+      }
+      setResult(null);
     } finally {
       setIsAnalyzing(false);
     }
@@ -55,6 +64,7 @@ export const LiveAnalysis: React.FC<LiveAnalysisProps> = ({ initialMachineId = '
 
   const handleReset = () => {
     setResult(null);
+    setErrorMsg(null);
     setIsAnalyzing(false);
   };
 
@@ -79,6 +89,7 @@ export const LiveAnalysis: React.FC<LiveAnalysisProps> = ({ initialMachineId = '
           <MachineSelector
             selectedMachineId={selectedMachineId}
             onChange={(id) => {
+              setErrorMsg(null);
               setSelectedMachineId(id);
               if (presetLoadedId) setPresetLoadedId(id);
             }}
@@ -157,6 +168,32 @@ export const LiveAnalysis: React.FC<LiveAnalysisProps> = ({ initialMachineId = '
                   transition: 'width 0.2s ease',
                 }}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Engineering Error Alert Banner */}
+        {errorMsg && (
+          <div
+            style={{
+              marginTop: '16px',
+              padding: '14px 16px',
+              backgroundColor: 'var(--status-anomaly-bg)',
+              border: '1px solid var(--status-anomaly-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--status-anomaly)',
+              fontSize: '12.5px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+            }}
+          >
+            <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
+            <div>
+              <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: '2px' }}>
+                Inference Pipeline Error
+              </div>
+              <div style={{ color: 'var(--text-primary)' }}>{errorMsg}</div>
             </div>
           </div>
         )}

@@ -3,9 +3,11 @@ import { Header } from '../components/Header';
 import { EvaluationTable } from '../components/EvaluationTable';
 import { AucChart } from '../components/AucChart';
 import { RocChart } from '../components/RocChart';
-import { EVALUATION_TABLE_DATA } from '../data/mockEvaluation';
+import { getEvaluationTableData } from '../data/mockEvaluation';
 
 export const Evaluation: React.FC = () => {
+  const { data, isRealData } = getEvaluationTableData();
+
   return (
     <div>
       <Header
@@ -15,13 +17,14 @@ export const Evaluation: React.FC = () => {
       />
 
       {/* Main Metrics Table */}
-      <EvaluationTable data={EVALUATION_TABLE_DATA} />
+      <EvaluationTable data={data} isRealData={isRealData} />
 
       {/* Visual Charts Grid */}
       <div className="grid-2col" style={{ marginTop: '20px' }}>
-        <AucChart data={EVALUATION_TABLE_DATA} />
+        <AucChart data={data} />
         <RocChart />
       </div>
     </div>
   );
 };
+
