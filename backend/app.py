@@ -1,0 +1,507 @@
+"""
+Rythm Sense
+FastAPI Inference Backend
+
+React
+  ↓
+FastAPI
+  ↓
+inference.predict()
+  ↓
+Person A + B + C
+  ↓
+JSON
+  ↓
+React
+"""
+
+from pathlib import Path
+import tempfile
+import time
+import logging
+
+from fastapi import (
+    FastAPI,
+    File,
+    UploadFile,
+    Form,
+    HTTPException,
+)
+
+from fastapi.middleware.cors import CORSMiddleware
+
+from inference import (
+    predict,
+    SUPPORTED_MACHINES,
+    normalize_machine_id,
+)
+
+
+# ============================================================
+# LOGGING
+# ============================================================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format=(
+        "%(asctime)s | "
+        "%(levelname)s | "
+        "%(message)s"
+    ),
+)
+
+logger = logging.getLogger(
+    "rythm_sense"
+)
+
+
+# ============================================================
+# APP
+# ============================================================
+
+app = FastAPI(
+    title="Rythm Sense",
+    description=(
+        "Unsupervised Industrial Acoustic "
+        "Anomaly Detection"
+    ),
+    version="1.0.0",
+)
+
+
+# ============================================================
+# CORS
+# ============================================================
+
+app.add_middleware(
+    CORSMiddleware,
+
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "*",
+    ],
+
+    allow_credentials=True,
+
+    allow_methods=["*"],
+
+    allow_headers=["*"],
+)
+
+
+# ============================================================
+# HEALTH
+# ============================================================
+
+@app.get("/health")
+def health():
+
+    return {
+        "status": "ok",
+
+        "engine":
+            "Rythm Sense ML Engine",
+
+        "mock_mode":
+            False,
+
+        "supported_machines":
+            list(SUPPORTED_MACHINES.keys()),
+    }
+
+
+# ============================================================
+# ROOT
+# ============================================================
+
+@app.get("/")
+def root():
+
+    return {
+        "name":
+            "Rythm Sense",
+
+        "status":
+            "running",
+
+        "pipeline":
+            [
+                "Log-Mel Spectrogram",
+                "TCN Predictive Coding",
+                "P95 Prediction Error",
+                "Conformal Calibration",
+            ],
+
+        "machines":
+            list(SUPPORTED_MACHINES.keys()),
+    }
+
+
+# ============================================================
+# PREDICT
+# ============================================================
+
+@app.post("/predict")
+async def predict_audio(
+
+    file: UploadFile = File(...),
+
+    machine_id: str = Form(...),
+):
+
+    start_time = time.perf_counter()
+
+
+    # ========================================================
+    # NORMALIZE MACHINE ID
+    # ========================================================
+
+    machine_id = normalize_machine_id(
+        machine_id
+    )
+
+
+    # ========================================================
+    # VALIDATE MACHINE
+    # ========================================================
+
+    if machine_id not in SUPPORTED_MACHINES:
+
+        raise HTTPException(
+
+            status_code=400,
+
+            detail=(
+                f"Unsupported machine ID: "
+                f"{machine_id}. "
+                f"Supported machines: "
+                f"{', '.join(SUPPORTED_MACHINES.keys())}"
+            ),
+        )
+
+
+    # ========================================================
+    # VALIDATE FILE
+    # ========================================================
+
+    if not file.filename:
+
+        raise HTTPException(
+            status_code=400,
+            detail="No filename supplied.",
+        )
+
+
+    if not file.filename.lower().endswith(
+        ".wav"
+    ):
+
+        raise HTTPException(
+
+            status_code=400,
+
+            detail=(
+                "Only WAV audio files are supported."
+            ),
+        )
+
+
+    # ========================================================
+    # READ FILE
+    # ========================================================
+
+    try:
+
+        file_bytes = await file.read()
+
+    except Exception as exc:
+
+        logger.exception(
+            "Unable to read uploaded file."
+        )
+
+        raise HTTPException(
+
+            status_code=400,
+
+            detail=(
+                f"Unable to read audio file: "
+                f"{exc}"
+            ),
+        )
+
+
+    if not file_bytes:
+
+        raise HTTPException(
+
+            status_code=400,
+
+            detail="Uploaded audio file is empty.",
+        )
+
+
+    # ========================================================
+    # TEMPORARY AUDIO FILE
+    # ========================================================
+
+    temp_path = None
+
+
+    try:
+
+        with tempfile.NamedTemporaryFile(
+
+            suffix=".wav",
+
+            delete=False,
+
+        ) as temp_file:
+
+            temp_file.write(
+                file_bytes
+            )
+
+            temp_path = Path(
+                temp_file.name
+            )
+
+
+        logger.info(
+            (
+                "Running inference | "
+                "machine=%s | "
+                "file=%s"
+            ),
+
+            machine_id,
+
+            file.filename,
+        )
+
+
+        # ====================================================
+        # REAL CONTRACT 4
+        # ====================================================
+
+        score, threshold, decision, spectrogram = predict(
+
+            filepath=temp_path,
+
+            machine_id=machine_id,
+        )
+
+
+        elapsed_ms = (
+            time.perf_counter()
+            - start_time
+        ) * 1000
+
+
+        # ====================================================
+        # SPECTROGRAM CONVERSION
+        # ====================================================
+
+        spectrogram = spectrogram.astype(
+            float
+        )
+
+
+        # ====================================================
+        # RESPONSE
+        # ====================================================
+
+        response = {
+
+            "machineId":
+                machine_id,
+
+            "machineType":
+                SUPPORTED_MACHINES[
+                    machine_id
+                ],
+
+            "machineLabel":
+                (
+                    f"{SUPPORTED_MACHINES[machine_id]}"
+                    f" — {machine_id}"
+                ),
+
+            "acousticBehavior":
+                (
+                    "Periodic / continuous acoustic behavior"
+                    if machine_id.startswith("fan")
+                    else
+                    "Event-driven / burst-like acoustic behavior"
+                ),
+
+            "anomalyScore":
+                score,
+
+            "threshold":
+                threshold,
+
+            "decisionMargin":
+                score - threshold,
+
+            "decision":
+                decision,
+
+            # -----------------------------------------------
+            # Spectrogram
+            # -----------------------------------------------
+
+            "spectrogram": {
+
+                "timeBins":
+                    int(
+                        spectrogram.shape[1]
+                    ),
+
+                "freqBins":
+                    int(
+                        spectrogram.shape[0]
+                    ),
+
+                "timeAxis":
+                    [
+                        round(
+                            i * 512 / 16000,
+                            4,
+                        )
+
+                        for i in range(
+                            spectrogram.shape[1]
+                        )
+                    ],
+
+                "freqAxis":
+                    [
+                        i
+
+                        for i in range(
+                            spectrogram.shape[0]
+                        )
+                    ],
+
+                "data":
+                    spectrogram.tolist(),
+            },
+
+            # -----------------------------------------------
+            # Metadata
+            # -----------------------------------------------
+
+            "audioMetadata": {
+
+                "filename":
+                    file.filename,
+
+                "sampleRate":
+                    16000,
+
+                "channels":
+                    1,
+
+                "fileSize":
+                    (
+                        f"{len(file_bytes) / 1024:.1f} KB"
+                    ),
+            },
+
+            "inferenceTimeMs":
+                round(
+                    elapsed_ms,
+                    2,
+                ),
+        }
+
+
+        logger.info(
+
+            (
+                "Inference complete | "
+                "machine=%s | "
+                "score=%.6f | "
+                "threshold=%.6f | "
+                "decision=%s | "
+                "time=%.2f ms"
+            ),
+
+            machine_id,
+
+            score,
+
+            threshold,
+
+            decision,
+
+            elapsed_ms,
+        )
+
+
+        return response
+
+
+    except HTTPException:
+
+        raise
+
+
+    except Exception as exc:
+
+        logger.exception(
+            "Inference failed."
+        )
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=(
+                "Inference failed: "
+                f"{str(exc)}"
+            ),
+        )
+
+
+    finally:
+
+        # ====================================================
+        # CLEAN TEMP FILE
+        # ====================================================
+
+        if temp_path is not None:
+
+            try:
+
+                temp_path.unlink(
+                    missing_ok=True
+                )
+
+            except Exception:
+
+                pass
+
+
+# ============================================================
+# RUN
+# ============================================================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    uvicorn.run(
+
+        "app:app",
+
+        host="0.0.0.0",
+
+        port=8000,
+
+        reload=True,
+    )

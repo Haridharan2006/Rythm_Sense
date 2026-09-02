@@ -3,9 +3,10 @@ import type { MachineEvaluationItem } from '../types';
 
 interface EvaluationTableProps {
   data: MachineEvaluationItem[];
+  isRealData?: boolean;
 }
 
-export const EvaluationTable: React.FC<EvaluationTableProps> = ({ data }) => {
+export const EvaluationTable: React.FC<EvaluationTableProps> = ({ data, isRealData = false }) => {
   const avgAuc = (data.reduce((acc, item) => acc + item.auc, 0) / data.length).toFixed(3);
   const avgPauc = (data.reduce((acc, item) => acc + item.pauc, 0) / data.length).toFixed(3);
 
@@ -21,18 +22,35 @@ export const EvaluationTable: React.FC<EvaluationTableProps> = ({ data }) => {
           alignItems: 'center',
         }}
       >
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '12px',
-            fontWeight: 700,
-            color: 'var(--text-secondary)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-          }}
-        >
-          MACHINE METRICS BREAKDOWN
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: 'var(--text-secondary)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}
+          >
+            MACHINE METRICS BREAKDOWN
+          </span>
+
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: '2px',
+              backgroundColor: isRealData ? 'var(--status-normal-bg)' : 'var(--accent-light)',
+              color: isRealData ? 'var(--status-normal)' : 'var(--accent-primary)',
+              border: `1px solid ${isRealData ? 'var(--status-normal-border)' : 'var(--accent-primary)'}`,
+            }}
+          >
+            {isRealData ? 'REAL EVALUATION DATA' : 'MOCK FALLBACK DATA'}
+          </span>
+        </div>
 
         <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
           Test Benchmark: 1,600 Audio Clips (10.0s @ 16kHz)

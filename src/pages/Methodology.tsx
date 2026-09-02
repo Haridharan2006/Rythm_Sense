@@ -7,8 +7,8 @@ export const Methodology: React.FC = () => {
     {
       num: '1',
       title: 'LOG-MEL REPRESENTATION',
-      desc: 'Raw audio waveform (16 kHz, single channel) is transformed into a 128-bin Log-Mel Spectrogram using a 25ms Hanning window with 10ms frame hop size. The logarithmic energy scaling matches industrial perceptual acoustic intensity dynamics.',
-      params: 'FFT Size: 1024 • Hop Length: 160 • Mel Channels: 128 • Frequency Range: 50 Hz – 8,000 Hz',
+      desc: 'Raw audio waveform (16 kHz, single channel) is transformed into a 64-bin Log-Mel Spectrogram using a 25ms Hanning window with 10ms frame hop size. The logarithmic energy scaling matches industrial perceptual acoustic intensity dynamics.',
+      params: 'FFT Size: 1024 • Hop Length: 160 • Mel Channels: 64 • Frequency Range: 50 Hz – 8,000 Hz',
     },
     {
       num: '2',
